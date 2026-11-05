@@ -27,8 +27,6 @@ let currentTool = "brush";
 let currentCalligraphyColor = "#000000"; 
 let lastX = 0;
 let lastY = 0;
-let startX = 0;
-let startY = 0;
 let undoStack = [];
 
 function openAdminLoginModal() {
@@ -413,18 +411,16 @@ function confirmStudentChoice() {
 }
 
 // =========================================================================
-// SISTEM GORESAN PENA KALIGRAFI: BELAH KETUPAT -> BULAT (SMOOTH) -> BELAH KETUPAT
+// SISTEM KALIGRAFI DINAMIS: Kanan-Kiri TEBAL, Miring SEDANG, Atas-Bawah TIPIS + Fade In/Out Belah Ketupat
 // =========================================================================
 function startAction(coords) {
     isDrawing = true;
     saveUndoState();
-    startX = coords.x;
-    startY = coords.y;
     lastX = coords.x;
     lastY = coords.y;
 
-    // Cetak bentuk belah ketupat di awal tarikan (Start)
-    drawDiamondStamp(startX, startY, 14);
+    // Fade-in: Bentuk belah ketupat di awal goresan
+    drawDiamondStamp(lastX, lastY, 14);
 }
 
 function moveAction(coords) {
@@ -436,13 +432,20 @@ function moveAction(coords) {
     let dx = currentX - lastX;
     let dy = currentY - lastY;
     let distance = Math.sqrt(dx * dx + dy * dy);
+    let angle = Math.atan2(dy, dx); // Sudut arah goresan
 
-    // Menggunakan garis tebal bulat yang sangat rapat dan halus (smooth) menyambung antar titik
+    // Menghitung ketebalan dinamis berdasarkan sudut pergerakan:
+    // - Arah Horizontal (Kanan-Kiri, cos mendekati 1 atau -1): TEBAL (~18)
+    // - Arah Miring/Silang (sin & cos seimbang): SEDANG (~10)
+    // - Arah Vertikal (Atas-Bawah, sin mendekati 1 atau -1): TIPIS (~4)
+    let horizontalFactor = Math.abs(Math.cos(angle));
+    let calligraphyWidth = horizontalFactor * 14 + 4;
+
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = currentCalligraphyColor;
     ctx.fillStyle = currentCalligraphyColor;
-    ctx.lineWidth = 12; // Ketebalan bagian tengah goresan
+    ctx.lineWidth = Math.max(3, calligraphyWidth);
     ctx.lineCap = "round";  
     ctx.lineJoin = "round"; 
 
@@ -459,7 +462,7 @@ function stopAction() {
     if (!isDrawing) return;
     isDrawing = false;
 
-    // Cetak bentuk belah ketupat di akhir tarikan (End) untuk efek penutup (Fade Out)
+    // Fade-out: Bentuk belah ketupat di akhir goresan
     drawDiamondStamp(lastX, lastY, 14);
 }
 
