@@ -27,6 +27,7 @@ let currentTool = "brush";
 let currentCalligraphyColor = "#000000"; 
 let lastX = 0;
 let lastY = 0;
+let isDiagonalStroke = false;
 let undoStack = [];
 
 function openAdminLoginModal() {
@@ -411,7 +412,9 @@ function confirmStudentChoice() {
 }
 
 // =========================================================================
-// SISTEM KALIGRAFI DINAMIS: Kanan-Kiri TEBAL, Miring SEDANG, Atas-Bawah TIPIS + Fade In/Out Belah Ketupat
+// SISTEM KALIGRAFI FIX: 
+// - Kanan-Kiri Tipis, Atas-Bawah Tebal, Miring Full Belah Ketupat
+// - Fade In / Out (Belah Ketupat di awal dan akhir)
 // =========================================================================
 function startAction(coords) {
     isDrawing = true;
@@ -419,7 +422,10 @@ function startAction(coords) {
     lastX = coords.x;
     lastY = coords.y;
 
-    // Fade-in: Bentuk belah ketupat di awal goresan
+    // Deteksi apakah goresan awal cenderung miring (diagonal)
+    isDiagonalStroke = false; 
+
+    // Fade-in: Belah ketupat di awal goresan
     drawDiamondStamp(lastX, lastY, 14);
 }
 
@@ -432,27 +438,39 @@ function moveAction(coords) {
     let dx = currentX - lastX;
     let dy = currentY - lastY;
     let distance = Math.sqrt(dx * dx + dy * dy);
-    let angle = Math.atan2(dy, dx); // Sudut arah goresan
+    let angle = Math.atan2(dy, dx); // Sudut arah goresan dalam radian
 
-    // Menghitung ketebalan dinamis berdasarkan sudut pergerakan:
-    // - Arah Horizontal (Kanan-Kiri, cos mendekati 1 atau -1): TEBAL (~18)
-    // - Arah Miring/Silang (sin & cos seimbang): SEDANG (~10)
-    // - Arah Vertikal (Atas-Bawah, sin mendekati 1 atau -1): TIPIS (~4)
-    let horizontalFactor = Math.abs(Math.cos(angle));
-    let calligraphyWidth = horizontalFactor * 14 + 4;
+    // Deteksi kemiringan (jika komponen X dan Y bergerak bersamaan secara signifikan, anggap garis miring/diagonal)
+    let absCos = Math.abs(Math.cos(angle));
+    let absSin = Math.abs(Math.sin(angle));
+    let isDiagonal = absCos > 0.3 && absSin > 0.3;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.strokeStyle = currentCalligraphyColor;
-    ctx.fillStyle = currentCalligraphyColor;
-    ctx.lineWidth = Math.max(3, calligraphyWidth);
-    ctx.lineCap = "round";  
-    ctx.lineJoin = "round"; 
+    if (isDiagonal) {
+        // Garis Miring: Full rangkaian bentuk belah ketupat rapat tanpa bundaran
+        let steps = Math.max(1, Math.floor(distance / 2));
+        for (let i = 1; i <= steps; i++) {
+            let interpX = lastX + (dx * i) / steps;
+            let interpY = lastY + (dy * i) / steps;
+            drawDiamondStamp(interpX, interpY, 12);
+        }
+    } else {
+        // Kanan-Kiri (Horizontal -> Tipis ~4px) & Atas-Bawah (Vertikal -> Tebal ~16px)
+        // Menggunakan sin(angle): vertikal murni bernilai 1/ -1 (tebal), horizontal murni bernilai 0 (tipis)
+        let calligraphyWidth = absSin * 14 + 4;
 
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(currentX, currentY);
-    ctx.stroke();
-    ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = currentCalligraphyColor;
+        ctx.fillStyle = currentCalligraphyColor;
+        ctx.lineWidth = Math.max(3, calligraphyWidth);
+        ctx.lineCap = "round";  
+        ctx.lineJoin = "round"; 
+
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+        ctx.restore();
+    }
 
     lastX = currentX;
     lastY = currentY;
@@ -462,7 +480,7 @@ function stopAction() {
     if (!isDrawing) return;
     isDrawing = false;
 
-    // Fade-out: Bentuk belah ketupat di akhir goresan
+    // Fade-out: Belah ketupat di akhir goresan
     drawDiamondStamp(lastX, lastY, 14);
 }
 
