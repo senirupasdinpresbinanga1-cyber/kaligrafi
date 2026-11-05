@@ -27,6 +27,8 @@ let currentTool = "brush";
 let currentCalligraphyColor = "#000000"; 
 let lastX = 0;
 let lastY = 0;
+let startX = 0;
+let startY = 0;
 let undoStack = [];
 
 function openAdminLoginModal() {
@@ -411,14 +413,18 @@ function confirmStudentChoice() {
 }
 
 // =========================================================================
-// PENA KALIGRAFI NIB BELAH KETUPAT (KOTAK DIPUTAR 90 DERAJAT / 45°)
+// SISTEM GORESAN PENA KALIGRAFI: BELAH KETUPAT -> BULAT (SMOOTH) -> BELAH KETUPAT
 // =========================================================================
 function startAction(coords) {
     isDrawing = true;
     saveUndoState();
+    startX = coords.x;
+    startY = coords.y;
     lastX = coords.x;
     lastY = coords.y;
-    drawDiamondStamp(lastX, lastY);
+
+    // Cetak bentuk belah ketupat di awal tarikan (Start)
+    drawDiamondStamp(startX, startY, 14);
 }
 
 function moveAction(coords) {
@@ -430,49 +436,41 @@ function moveAction(coords) {
     let dx = currentX - lastX;
     let dy = currentY - lastY;
     let distance = Math.sqrt(dx * dx + dy * dy);
-    let angle = Math.atan2(dy, dx);
 
-    // Ketebalan dinamis nib pipih: Horizontal tebal, vertikal tipis
-    let calligraphyWidth = Math.abs(Math.cos(angle)) * 14 + 4;
-
+    // Menggunakan garis tebal bulat yang sangat rapat dan halus (smooth) menyambung antar titik
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = currentCalligraphyColor;
     ctx.fillStyle = currentCalligraphyColor;
-    ctx.lineWidth = Math.max(4, calligraphyWidth);
-    ctx.lineCap = "square"; // Bentuk ujung kotak datar
-    ctx.lineJoin = "miter"; // Sambungan sudut lancip menyerupai kaligrafi pena bambu
+    ctx.lineWidth = 12; // Ketebalan bagian tengah goresan
+    ctx.lineCap = "round";  
+    ctx.lineJoin = "round"; 
 
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(currentX, currentY);
     ctx.stroke();
     ctx.restore();
 
-    // Stamping bentuk belah ketupat di sepanjang jalur agar membentuk goresan kotak diputar 90 derajat yang rapat
-    let steps = Math.max(1, Math.floor(distance / 2));
-    for (let i = 1; i <= steps; i++) {
-        let interpX = lastX + (dx * i) / steps;
-        let interpY = lastY + (dy * i) / steps;
-        drawDiamondStamp(interpX, interpY, calligraphyWidth);
-    }
-
     lastX = currentX;
     lastY = currentY;
-}
-
-// Fungsi menggambar stempel belah ketupat (kotak diputar 90° / 45°)
-function drawDiamondStamp(x, y, size = 12) {
-    ctx.save();
-    ctx.fillStyle = currentCalligraphyColor;
-    ctx.translate(x, y);
-    ctx.rotate(Math.PI / 4); // Rotasi 45-90 derajat membentuk belah ketupat
-    ctx.fillRect(-size / 2, -size / 2, size, size);
-    ctx.restore();
 }
 
 function stopAction() {
     if (!isDrawing) return;
     isDrawing = false;
+
+    // Cetak bentuk belah ketupat di akhir tarikan (End) untuk efek penutup (Fade Out)
+    drawDiamondStamp(lastX, lastY, 14);
+}
+
+// Fungsi menggambar bentuk belah ketupat
+function drawDiamondStamp(x, y, size = 14) {
+    ctx.save();
+    ctx.fillStyle = currentCalligraphyColor;
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4); // Rotasi 45 derajat membentuk belah ketupat
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
 }
 
 function hexToRgba(hex) {
