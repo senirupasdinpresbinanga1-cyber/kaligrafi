@@ -1,17 +1,15 @@
-const GS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzZdChT9O5WUpDcbSriv2AIIvOfuQxuZ8MO7r52hnw15f61I4yxbmo4f-K8C4H0y_01/exec";
+const GS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzGD2akVdn5TdycTWbHvoNuLQBDWaPzIkJCY2wLgD4JvN5F47qpaOqVVyqSJWDnqtCcbA/exec";
 
 let selectedClass = "5A";
 let adminSelectedClass = "5A";
 let studentsList = [];
 let studentResults = {};
-let takenObjects = [];
 let currentIndex = 0;
 let countdown;
 let timeLeft = 180;
 let isGameActive = false;
 let adminInterval = null;
 
-// Daftar Paket Ayat Surat Al-Fatihah (7 Ayat + 1 Basmalah)
 const alfatihahPackage = [
     "Basmalah: Bismillaahir-rohmaanir-rohiim",
     "Ayat 1: Al-hamdu lillaahi robbil-'alamiin",
@@ -25,7 +23,8 @@ const alfatihahPackage = [
 
 let canvas, ctx;
 let isDrawing = false;
-let currentCalligraphyColor = "#000000"; // Default Hitam
+let currentTool = "brush"; // "brush" atau "fill"
+let currentCalligraphyColor = "#000000"; // Hitam atau #d4af37 (Emas)
 let lastX = 0;
 let lastY = 0;
 let undoStack = [];
@@ -100,15 +99,15 @@ async function fetchAdminDatabaseData(isBackground = false) {
                 const name = row[0] || '-';
                 const objek = row[1] || '-';
                 const gambar = row[2] || '';
-                const nilai = row[3] || '0%';
-                const waktu = row[5] || '-';
+                const status = row[3] || '-';
+                const waktu = row[4] || '-';
 
-                let actionBtn = gambar ? `<button class="btn btn-glow btn-sm" onclick="openImageModal('${name}', '${gambar}', '${nilai}', 'Kaligrafi tersimpan di database.')"><i class="fas fa-image"></i> Buka Hasil Kaligrafi</button>` : '-';
+                let actionBtn = gambar ? `<button class="btn btn-glow btn-sm" onclick="openImageModal('${name}', '${gambar}')"><i class="fas fa-image"></i> Buka Gambar</button>` : '-';
 
                 tr.innerHTML = `
                     <td><strong>${name}</strong></td>
                     <td>${objek}</td>
-                    <td><strong style="color: #d4af37;">${nilai}</strong></td>
+                    <td><strong style="color: #16a34a;">${status}</strong></td>
                     <td style="font-size: 12px; color: #94a3b8;">${waktu}</td>
                     <td>${actionBtn}</td>
                 `;
@@ -133,10 +132,9 @@ function adminResetSession() {
         
         currentIndex = 0;
         studentResults = {};
-        takenObjects = [];
         
         fetchStudentsFromDatabase();
-        alert("Sesi kaligrafi berhasil direset ke halaman awal.");
+        alert("Sesi kaligrafi berhasil direset.");
     }
 }
 
@@ -227,7 +225,6 @@ function startEntireGame() {
 
     currentIndex = 0;
     studentResults = {};
-    takenObjects = [];
     isGameActive = true;
     
     document.getElementById('setup-panel').classList.add('hidden');
@@ -270,7 +267,6 @@ function getEventCoordinates(e) {
     };
 }
 
-// Inisialisasi Kanvas dengan 8 Garis Panduan Transparan
 function initCanvas() {
     canvas = document.getElementById('drawing-canvas');
     ctx = canvas.getContext('2d');
@@ -284,12 +280,18 @@ function initCanvas() {
         e.preventDefault();
         canvas.setPointerCapture(e.pointerId);
         const coords = getEventCoordinates(e);
-        startAction(coords);
+        
+        if (currentTool === "fill") {
+            saveUndoState();
+            floodFill(Math.floor(coords.x), Math.floor(coords.y), hexToRgba(currentCalligraphyColor));
+        } else {
+            startAction(coords);
+        }
     });
 
     canvas.addEventListener('pointermove', (e) => {
         e.preventDefault();
-        if (isDrawing) {
+        if (isDrawing && currentTool === "brush") {
             const coords = getEventCoordinates(e);
             moveAction(coords);
         }
@@ -310,13 +312,11 @@ function initCanvas() {
     canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 }
 
-// Menggambar latar belakang putih bersih beserta 8 Baris Panduan Transparan
 function drawGuidelines() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 8 Baris Transparan (garis bantu putus-putus tipis untuk kaligrafi)
-    ctx.strokeStyle = "rgba(212, 175, 55, 0.25)"; // Warna emas transparan lembut
+    ctx.strokeStyle = "rgba(212, 175, 55, 0.25)";
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
 
@@ -328,7 +328,7 @@ function drawGuidelines() {
         ctx.lineTo(canvas.width - 40, y);
         ctx.stroke();
     }
-    ctx.setLineDash([]); // Reset line dash untuk pena kaligrafi
+    ctx.setLineDash([]);
 }
 
 function clearCanvas() {
@@ -346,6 +346,12 @@ function undoCanvas() {
         const previousState = undoStack.pop();
         ctx.putImageData(previousState, 0, 0);
     }
+}
+
+function setTool(tool) {
+    currentTool = tool;
+    document.getElementById('tool-brush').classList.toggle('active', tool === 'brush');
+    document.getElementById('tool-fill').classList.toggle('active', tool === 'fill');
 }
 
 function setCalligraphyColor(colorHex) {
@@ -373,34 +379,19 @@ function promptStudentChoice() {
     const selectEl = document.getElementById('package-item-select');
     selectEl.innerHTML = '';
     
-    let availableItems = alfatihahPackage.filter(item => !takenObjects.includes(item.toLowerCase()));
-
-    if (availableItems.length === 0) {
+    // Semua ayat tetap tersedia (tidak dihapus walau sudah dipilih siswa lain)
+    alfatihahPackage.forEach(item => {
         let opt = document.createElement('option');
-        opt.value = "";
-        opt.textContent = "Semua ayat Al-Fatihah sudah diambil!";
+        opt.value = item;
+        opt.textContent = item;
         selectEl.appendChild(opt);
-    } else {
-        availableItems.forEach(item => {
-            let opt = document.createElement('option');
-            opt.value = item;
-            opt.textContent = item;
-            selectEl.appendChild(opt);
-        });
-    }
+    });
 
     document.getElementById('student-choice-modal').style.display = 'flex';
 }
 
 function confirmStudentChoice() {
     const selectEl = document.getElementById('package-item-select').value;
-    
-    if (!selectEl) {
-        alert("Semua ayat sudah habis diambil!");
-        return;
-    }
-
-    takenObjects.push(selectEl.trim().toLowerCase());
     studentsList[currentIndex].chosenItem = selectEl;
 
     document.getElementById('student-choice-modal').style.display = 'none';
@@ -421,8 +412,7 @@ function confirmStudentChoice() {
 }
 
 // =========================================================================
-// EFEK PENA KALIGRAFI KHUSUS (Sudut Pipih Otomatis)
-// Garis Vertikal (Atas-Bawah) TIPIS, Garis Horizontal (Samping Kiri-Kanan) TEBAL
+// PENA KALIGRAFI TERSAMBUNG SEMPURNA (Garis Horizontal Kiri-Kanan TEBAL, Vertikal TIPIS)
 // =========================================================================
 function startAction(coords) {
     isDrawing = true;
@@ -442,16 +432,16 @@ function moveAction(coords) {
     let distance = Math.sqrt(dx * dx + dy * dy);
     let angle = Math.atan2(dy, dx);
 
-    // Lebar pena pipih kaligrafi (efek sudut lebar horizontal dan tipis vertikal)
-    let calligraphyWidth = Math.abs(Math.sin(angle)) * 16 + 2; 
+    // Dibalik: Sesuai permintaan Anda, garis ke samping (horizontal) tebal, ke atas-bawah tipis
+    let calligraphyWidth = Math.abs(Math.cos(angle)) * 16 + 3;
 
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = currentCalligraphyColor;
     ctx.fillStyle = currentCalligraphyColor;
-    ctx.lineWidth = Math.max(2, calligraphyWidth);
-    ctx.lineCap = "butt";
-    ctx.lineJoin = "miter";
+    ctx.lineWidth = Math.max(3, calligraphyWidth);
+    ctx.lineCap = "round";  // Membuat ujung bulat agar garis bengkok tetap tersambung rapat tanpa putus
+    ctx.lineJoin = "round"; // Membuat sambungan sudut melengkung halus dan menyatu
 
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(currentX, currentY);
@@ -468,97 +458,76 @@ function stopAction() {
 }
 
 // =========================================================================
-// SISTEM PENILAIAN AI KALIGRAFI (MAKSIMAL 100% UNTUK AYAT & TANDA LENGKAP)
+// FITUR CAT TUMPAH (FLOOD FILL) DENGAN WARNA HITAM & EMAS
 // =========================================================================
-function evaluateCalligraphyWithAI() {
+function hexToRgba(hex) {
+    let bigint = parseInt(hex.replace('#',''), 16);
+    let r = (bigint >> 16) & 255;
+    let g = (bigint >> 8) & 255;
+    let b = bigint & 255;
+    return [r, g, b, 255];
+}
+
+function floodFill(startX, startY, fillColor) {
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
     const width = canvas.width;
     const height = canvas.height;
-    const imgData = ctx.getImageData(0, 0, width, height);
-    const data = imgData.data;
 
-    let totalPixels = width * height;
-    let inkPixels = 0;
-    let uniqueColorShades = new Set();
-    let rowDensity = new Array(8).fill(0); // Deteksi sebaran di 8 baris transparan
-    let rowHeight = height / 9;
+    const startIndex = (startY * width + startX) * 4;
+    const startR = data[startIndex];
+    const startG = data[startIndex + 1];
+    const startB = data[startIndex + 2];
+    const startA = data[startIndex + 3];
 
-    for (let y = 0; y < height; y++) {
-        let rowIndex = Math.floor(y / rowHeight) - 1;
-        for (let x = 0; x < width; x++) {
-            let idx = (y * width + x) * 4;
-            let r = data[idx];
-            let g = data[idx + 1];
-            let b = data[idx + 2];
+    if (startR === fillColor[0] && startG === fillColor[1] && startB === fillColor[2] && startA === fillColor[3]) {
+        return;
+    }
 
-            // Deteksi piksel tinta (Hitam atau Emas, bukan latar putih/garis panduan transparan)
-            if (!((r > 240 && g > 240 && b > 240) || (Math.abs(r - 212) < 40 && Math.abs(g - 175) < 40 && Math.abs(b - 55) < 40 && (r + g + b) > 400))) {
-                inkPixels++;
-                uniqueColorShades.add(`${r},${g},${b}`);
+    const queue = [[startX, startY]];
+    const matchedColor = (r, g, b, a) => {
+        return Math.abs(r - startR) < 30 && Math.abs(g - startG) < 30 && Math.abs(b - startB) < 30 && Math.abs(a - startA) < 30;
+    };
 
-                if (rowIndex >= 0 && rowIndex < 8) {
-                    rowDensity[rowIndex]++;
+    while (queue.length > 0) {
+        const [x, y] = queue.pop();
+        if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
+        let westX = x;
+        let eastX = x;
+
+        while (westX >= 0 && matchedColor(data[(y * width + westX) * 4], data[(y * width + westX) * 4 + 1], data[(y * width + westX) * 4 + 2], data[(y * width + westX) * 4 + 3])) {
+            westX--;
+        }
+        westX++;
+
+        while (eastX < width && matchedColor(data[(y * width + eastX) * 4], data[(y * width + eastX) * 4 + 1], data[(y * width + eastX) * 4 + 2], data[(y * width + eastX) * 4 + 3])) {
+            eastX++;
+        }
+        eastX--;
+
+        for (let cx = westX; cx <= eastX; cx++) {
+            let idx = (y * width + cx) * 4;
+            data[idx] = fillColor[0];
+            data[idx + 1] = fillColor[1];
+            data[idx + 2] = fillColor[2];
+            data[idx + 3] = fillColor[3];
+
+            if (y > 0) {
+                let upIdx = ((y - 1) * width + cx) * 4;
+                if (matchedColor(data[upIdx], data[upIdx+1], data[upIdx+2], data[upIdx+3])) {
+                    queue.push([cx, y - 1]);
+                }
+            }
+            if (y < height - 1) {
+                let downIdx = ((y + 1) * width + cx) * 4;
+                if (matchedColor(data[downIdx], data[downIdx+1], data[downIdx+2], data[downIdx+3])) {
+                    queue.push([cx, y + 1]);
                 }
             }
         }
     }
-
-    // 1. Aspek Kepadatan Tulisan Kaligrafi (Ideal: 3% - 25% dari area kanvas)
-    let densityRatio = inkPixels / totalPixels;
-    let scoreDensity = 0;
-    if (densityRatio >= 0.03 && densityRatio <= 0.25) {
-        scoreDensity = 30; // Poin penuh
-    } else if (densityRatio > 0.01 && densityRatio < 0.03) {
-        scoreDensity = 15;
-    } else if (densityRatio > 0.25) {
-        scoreDensity = 20;
-    } else {
-        scoreDensity = 5; // Terlalu sedikit / kosong
-    }
-
-    // 2. Aspek Harmoni & Ketepatan Tinta (Penggunaan warna hitam & emas yang konsisten)
-    let scoreInkQuality = uniqueColorShades.size > 0 ? 25 : 0;
-
-    // 3. Aspek Proporsi Ayat & Kepatuhan pada 8 Baris Panduan Transparan
-    let activeRows = rowDensity.filter(count => count > 50).length;
-    let scoreAlignment = (activeRows >= 1 && activeRows <= 4) ? 25 : (activeRows > 4 ? 20 : 10);
-
-    // 4. Aspek Keberadaan Tanda Baca / Harakat (Simulasi Deteksi Detail Goresan Atas-Bawah)
-    let scoreHarakatTanda = inkPixels > 300 ? 20 : (inkPixels > 100 ? 10 : 2);
-
-    // Total Nilai Akhir (Maksimal 100%)
-    let rawFinalScore = scoreDensity + scoreInkQuality + scoreAlignment + scoreHarakatTanda;
-    
-    // Jika siswa menulis dengan baik dan penuh, berikan nilai sempurna 100%
-    let finalScore = (rawFinalScore >= 80) ? 100 : Math.max(35, Math.round(rawFinalScore * 1.15));
-    finalScore = Math.min(100, finalScore);
-
-    let feedbackStatus = finalScore === 100 ? "Sempurna! Ayat Al-Fatihah, harakat, dan tanda baca lengkap sesuai kaidah." : "Tulisan kaligrafi sudah bagus, tingkatkan kerapian pada harakat.";
-
-    let detailedFeedback = `
-Analisis AI Kaligrafi Surat Al-Fatihah:
-- Status Kelengkapan Ayat & Tanda: ${feedbackStatus}
-- Kepadatan Goresan Tinta: ${Math.round(densityRatio * 100)}%
-- Kesesuaian Jalur 8 Baris Panduan: ${activeRows} Baris Aktif Terisi
-
-Rincian Skor Penilaian Komprehensif:
-1. Kepadatan & Bentuk Huruf: ${scoreDensity} / 30
-2. Kualitas Tinta (Hitam/Emas): ${scoreInkQuality} / 25
-3. Kesejajaran & Proporsi Baris: ${scoreAlignment} / 25
-4. Kelengkapan Harakat & Tanda Baca: ${scoreHarakatTanda} / 20
-
-Total Akurasi Kaligrafi: ${finalScore}%
-
-Kelebihan:
-- Goresan pena pipih vertikal-tipis dan horizontal-tebal sudah diterapkan dengan baik pada struktur ayat.
-
-Saran Perbaikan:
-- Pastikan semua harakat (fathah, kasrah, dammah) dan tanda baca ditulis lengkap agar mencapai nilai 100%.
-    `.trim();
-
-    return { 
-        score: `${finalScore}%`, 
-        desc: detailedFeedback 
-    };
+    ctx.putImageData(imgData, 0, 0);
 }
 
 function startTimer() {
@@ -577,17 +546,14 @@ function startTimer() {
 function handleTimeUp() {
     const student = studentsList[currentIndex];
     const imageBase64 = canvas.toDataURL("image/png");
-    const aiResult = evaluateCalligraphyWithAI();
     
     studentResults[student.name] = { 
         item: student.chosenItem, 
         imageData: imageBase64, 
-        score: aiResult.score,
-        desc: aiResult.desc,
-        status: "Waktu Habis (Dinilai AI)" 
+        status: "Selesai (Waktu Habis)" 
     };
     if (selectedClass !== 'Contohkan') {
-        saveStudentScoreToDatabase(student, imageBase64, aiResult.score, "Waktu Habis");
+        saveStudentScoreToDatabase(student, imageBase64, "Selesai (Waktu Habis)");
     }
     renderSidebarList();
 
@@ -612,18 +578,15 @@ function triggerSelesaiButton() {
     }
     const student = studentsList[currentIndex];
     const imageBase64 = canvas.toDataURL("image/png");
-    const aiResult = evaluateCalligraphyWithAI();
     
     studentResults[student.name] = { 
         item: student.chosenItem,
         imageData: imageBase64, 
-        score: aiResult.score,
-        desc: aiResult.desc,
-        status: "Selesai (Dinilai AI)" 
+        status: "Selesai" 
     };
     
     if (selectedClass !== 'Contohkan') {
-        saveStudentScoreToDatabase(student, imageBase64, aiResult.score, "Selesai");
+        saveStudentScoreToDatabase(student, imageBase64, "Selesai");
     }
     document.getElementById('game-panel').classList.add('hidden');
     renderSidebarList();
@@ -649,10 +612,10 @@ function skipCurrentStudent() {
     }
     const student = studentsList[currentIndex];
     student.skipped = true;
-    studentResults[student.name] = { item: "-", imageData: null, score: "0%", desc: "Dilewati.", status: "Dilewati (Skipped)" };
+    studentResults[student.name] = { item: "-", imageData: null, status: "Dilewati (Skipped)" };
     
     if (selectedClass !== 'Contohkan') {
-        saveStudentScoreToDatabase(student, "", "0%", "Dilewati (Skipped)");
+        saveStudentScoreToDatabase(student, "", "Dilewati (Skipped)");
     }
     
     document.getElementById('game-panel').classList.add('hidden');
@@ -667,7 +630,7 @@ function skipCurrentStudent() {
     }
 }
 
-function saveStudentScoreToDatabase(student, imageBase64, scoreVal, statusVal) {
+function saveStudentScoreToDatabase(student, imageBase64, statusVal) {
     if (student.skipped || selectedClass === 'Contohkan') return;
 
     let payload = {
@@ -678,7 +641,6 @@ function saveStudentScoreToDatabase(student, imageBase64, scoreVal, statusVal) {
             nama: student.name,
             objek: student.chosenItem,
             gambar: imageBase64,
-            nilaiAI: scoreVal,
             status: statusVal,
             waktu: new Date().toLocaleString('id-ID')
         }
@@ -713,8 +675,8 @@ function renderSidebarList() {
         
         if (stu.skipped) {
             statusBadge = '<span class="student-status status-skipped">Absen</span>';
-        } else if (data && data.score) {
-            statusBadge = `<span class="student-status status-done">${data.score}</span>`;
+        } else if (data && data.status) {
+            statusBadge = `<span class="student-status status-done">Selesai</span>`;
         } else if (idx === currentIndex && isGameActive) {
             statusBadge = '<span class="student-status status-active">Aktif</span>';
         }
@@ -734,36 +696,32 @@ function endAllTurns() {
 
     const infoText = (selectedClass === 'Contohkan') 
         ? `✨ Mode Contohkan Selesai! (Data tidak disimpan ke Google Spreadsheet).` 
-        : `✅ Sesi kaligrafi selesai! Seluruh nilai AI tersimpan di Google Spreadsheet (Sheet Data_${selectedClass})[cite: 2, 3].`;
+        : `✅ Sesi kaligrafi selesai! Seluruh hasil tersimpan di Google Spreadsheet (Sheet Data_${selectedClass})[cite: 2, 3].`;
 
     document.getElementById('sync-status-msg').textContent = infoText;
 
     const tbody = document.getElementById('result-table-body');
     tbody.innerHTML = '';
     studentsList.forEach((stu, idx) => {
-        let res = studentResults[stu.name] || { item: "-", imageData: null, score: "0%", desc: "-", status: "-" };
+        let res = studentResults[stu.name] || { item: "-", imageData: null, status: "Belum" };
         const tr = document.createElement('tr');
         
-        let actionBtn = res.imageData ? `<button class="btn btn-glow btn-sm" onclick="openImageModal('${stu.name}', '${res.imageData}', '${res.score}', \`${res.desc}\`)"><i class="fas fa-robot"></i> Lihat Analisis AI</button>` : '-';
+        let actionBtn = res.imageData ? `<button class="btn btn-glow btn-sm" onclick="openImageModal('${stu.name}', '${res.imageData}')"><i class="fas fa-image"></i> Lihat Gambar</button>` : '-';
 
         tr.innerHTML = `
             <td>${idx + 1}</td>
             <td>${stu.name}</td>
             <td><strong>${stu.skipped ? '-' : res.item}</strong></td>
-            <td><strong style="color: #d4af37;">${stu.skipped ? '0%' : res.score}</strong></td>
-            <td>${stu.skipped ? 'Dilewati' : res.status}</td>
+            <td><strong style="color: #16a34a;">${stu.skipped ? 'Dilewati' : res.status}</strong></td>
             <td>${actionBtn}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-function openImageModal(studentName, imgData, score, desc) {
-    document.getElementById('modal-preview-title').innerHTML = `<i class="fas fa-robot"></i> Hasil & Analisis Kaligrafi: ${studentName}`;
+function openImageModal(studentName, imgData) {
+    document.getElementById('modal-preview-title').innerHTML = `<i class="fas fa-image"></i> Hasil Kaligrafi: ${studentName}`;
     document.getElementById('modal-img-preview').src = imgData;
-    document.getElementById('ai-score-text').innerHTML = `🤖 Nilai AI Kaligrafi: <span style="color: #d4af37;">${score}</span>`;
-    document.getElementById('ai-desc-text').style.whiteSpace = "pre-line";
-    document.getElementById('ai-desc-text').textContent = desc;
     document.getElementById('image-modal').style.display = 'flex';
 }
 
