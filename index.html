@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seni Kaligrafi - Surat Al-Fatihah & Penilaian AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="fullscreen-bg"></div>
+
+    <div id="top-nav-admin" class="top-nav-admin">
+        <button id="admin-login-btn" class="btn btn-admin-nav" onclick="openAdminLoginModal()"><i class="fas fa-user-shield"></i> Login Admin</button>
+    </div>
+
+    <!-- Modal Login Admin -->
+    <div id="admin-login-modal" class="full-overlay" style="display: none;">
+        <div class="card modal-card" style="max-width: 380px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-lock"></i> Login Admin</h3>
+                <button class="btn-close" onclick="closeAdminLoginModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: left;">
+                <label style="font-size: 13px; color: #cbd5e1; display: block; margin-top: 10px;">Username:</label>
+                <input type="text" id="admin-user-input" placeholder="Masukkan username" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; margin-bottom: 12px;">
+
+                <label style="font-size: 13px; color: #cbd5e1; display: block;">Password:</label>
+                <input type="password" id="admin-pass-input" placeholder="Masukkan password" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; margin-bottom: 15px;">
+
+                <p id="admin-login-error" style="color: #dc3545; font-size: 12px; display: none; margin-bottom: 10px;">Username atau Password salah!</p>
+
+                <button class="btn btn-glow" onclick="processAdminLogin()" style="width: 100%; padding: 12px;">Masuk <i class="fas fa-sign-in-alt"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Halaman Dashboard Admin -->
+    <div id="admin-dashboard-page" class="full-overlay" style="display: none; align-items: flex-start; overflow-y: auto; padding: 20px 0;">
+        <div class="card modal-card" style="max-width: 950px; width: 95%; margin: auto;">
+            <div class="modal-header">
+                <div>
+                    <h2 style="color: #d4af37;"><i class="fas fa-database"></i> Panel Kontrol & Database Kaligrafi Admin</h2>
+                    <small style="color: #34d399;"><i class="fas fa-sync fa-spin"></i> Live Auto-Update aktif</small>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="logoutAdmin()"><i class="fas fa-sign-out-alt"></i> Keluar Admin</button>
+            </div>
+
+            <div class="class-selector-group" style="margin-bottom: 15px;">
+                <button class="btn-class active" id="admin-btn-5a" onclick="switchAdminClass('5A')">🏫 Database Kelas 5A</button>
+                <button class="btn-class" id="admin-btn-5b" onclick="switchAdminClass('5B')">🏫 Database Kelas 5B</button>
+            </div>
+
+            <div class="result-table-wrapper" style="max-height: 55vh; overflow-y: auto;">
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>Ayat Kaligrafi</th>
+                            <th>Nilai</th>
+                            <th>Waktu</th>
+                            <th>Analisis</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-db-table-body">
+                        <tr><td colspan="5">Memuat data spreadsheet...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Overlay -->
+    <div id="warning-overlay" class="full-overlay" style="display: none;">
+        <div class="card warning-card">
+            <h2 style="margin-bottom: 12px; color: #dc3545; font-size: 24px;"><i class="fas fa-exclamation-triangle"></i> PERINGATAN!</h2>
+            <p style="color: #1e293b; font-size: 15px; font-weight: 700; margin-bottom: 10px;">Anda terdeteksi keluar dari layar penuh / berpindah aplikasi.</p>
+            <button class="btn btn-danger" onclick="returnToFullscreen()" style="width: 100%; padding: 12px;"><i class="fas fa-compress"></i> Kembali ke Layar Penuh</button>
+        </div>
+    </div>
+
+    <!-- Time Up Overlay -->
+    <div id="timeup-overlay" class="full-overlay" style="display: none;">
+        <div class="card timeup-card">
+            <h2 style="margin-bottom: 10px; color: #f59e0b; font-size: 24px;"><i class="fas fa-hourglass-end"></i> Waktu Habis!</h2>
+            <p id="timeup-message" style="color: #1e293b; font-size: 16px; font-weight: 600; margin-bottom: 20px;">Waktu menulis kaligrafi 3 menit telah selesai.</p>
+            <button class="btn btn-glow" onclick="proceedNextAfterTimeUp()" style="width: 100%; padding: 12px; font-size: 16px;">Lanjutkan <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>
+
+    <!-- Modal Pilih Ayat Al-Fatihah untuk Siswa -->
+    <div id="student-choice-modal" class="full-overlay" style="display: none;">
+        <div class="card modal-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-feather-pointed"></i> Pilih Ayat Al-Fatihah</h3>
+            </div>
+            <div class="modal-body" style="text-align: left;">
+                <p style="font-size: 14px; color: #cbd5e1; margin-bottom: 15px;">Halo <strong id="modal-student-name" style="color: #d4af37;">-</strong>, silakan pilih ayat Surat Al-Fatihah yang akan dikaligrafi:</p>
+                
+                <label style="font-size: 13px; color: #94a3b8; display: block; margin-bottom: 8px;">Daftar Ayat Tersedia:</label>
+                <select id="package-item-select" class="btn-class" style="width: 100%; margin-bottom: 20px; text-align: left; background: #0f172a; padding: 12px; font-size: 14px;"></select>
+
+                <button class="btn btn-glow" onclick="confirmStudentChoice()" style="width: 100%; padding: 12px; font-size: 15px;">Mulai Kaligrafi <i class="fas fa-play"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Turn Alert Overlay -->
+    <div id="turn-alert-overlay" class="full-overlay" style="display: none;">
+        <div class="card warning-card" style="border-top: 5px solid #d4af37;">
+            <h2 id="turn-alert-title" style="margin-bottom: 12px; color: #b8860b; font-size: 22px;"><i class="fas fa-user-clock"></i> Giliran Berikutnya</h2>
+            <p id="turn-alert-msg" style="color: #1e293b; font-size: 16px; font-weight: 600; margin-bottom: 20px;">Giliran Berikutnya...</p>
+            <button class="btn btn-glow" onclick="closeTurnAlert()" style="width: 100%; padding: 12px; font-size: 16px;">Lanjutkan <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>
+
+    <!-- Modal Preview Gambar & Analisis AI Kaligrafi -->
+    <div id="image-modal" class="full-overlay" style="display: none;">
+        <div class="card modal-card">
+            <div class="modal-header">
+                <h3 id="modal-preview-title"><i class="fas fa-robot"></i> Analisis AI Kaligrafi & Hasil</h3>
+                <button class="btn-close" onclick="closeImageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="modal-img-preview" src="" alt="Hasil Kaligrafi Siswa" style="max-height: 35vh; margin-bottom: 15px; border-color: #d4af37;">
+                <div id="ai-feedback-box" style="background: #0f172a; padding: 15px; border-radius: 10px; text-align: left; border: 1px solid #334155; max-height: 30vh; overflow-y: auto;">
+                    <p id="ai-score-text" style="font-size: 18px; font-weight: 700; color: #d4af37; margin-bottom: 8px;">Nilai AI: -</p>
+                    <p id="ai-desc-text" style="font-size: 12px; color: #cbd5e1; line-height: 1.5; white-space: pre-line;">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <aside class="student-sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-users"></i> Daftar Siswa (<span id="sidebar-count">0</span>)</h3>
+                <small id="sidebar-class-label">Pilih Kelas Terlebih Dahulu</small>
+            </div>
+            <ul id="student-list" class="student-list"></ul>
+        </aside>
+
+        <main class="app-container">
+            <header id="app-header-el" class="app-header">
+                <h1>✒️ Seni Kaligrafi Al-Fatihah <span id="header-class-badge" class="badge">Kelas 5A</span></h1>
+                <p>Pena Khusus Hitam & Emas (8 Baris Transparan, 3 Menit)</p>
+            </header>
+
+            <!-- Setup Panel -->
+            <div id="setup-panel" class="glass-card">
+                <div class="setup-content">
+                    <h3>📜 Konfigurasi Sesi Kaligrafi Surat Al-Fatihah</h3>
+                    
+                    <label class="setup-label">Pilih Kelas / Mode:</label>
+                    <div class="class-selector-group">
+                        <button class="btn-class active" data-class="5A" onclick="selectClass('5A')">🏫 Kelas 5A</button>
+                        <button class="btn-class" data-class="5B" onclick="selectClass('5B')">🏫 Kelas 5B</button>
+                        <button class="btn-class" data-class="Contohkan" onclick="selectClass('Contohkan')" style="background: #065f46; border-color: #34d399;">✨ Contohkan</button>
+                    </div>
+
+                    <ul class="rule-list" style="margin-top: 15px;">
+                        <li>📥 <strong>Database Spreadsheet:</strong> Nama siswa ditarik otomatis dari sheet[cite: 1, 2].</li>
+                        <li>🔒 <strong>Ayat Unik:</strong> Ayat Al-Fatihah yang sudah diambil siswa lain otomatis hilang[cite: 2].</li>
+                        <li>✒️ <strong>Pena Kaligrafi:</strong> Tinta khusus <strong>Hitam & Emas</strong> dengan sudut pipih otomatis (vertikal tipis, horizontal tebal).</li>
+                        <li>📏 <strong>8 Baris Transparan:</strong> Panduan garis bantu untuk menjaga tulisan tetap rapi dan proporsional.</li>
+                        <li>🏆 <strong>Sistem Penilaian AI:</strong> Menganalisis kelengkapan ayat, harakat/tanda baca, proporsi, dan kerapian. Nilai maksimal sempurna adalah **100%**.</li>
+                    </ul>
+                    <button id="start-btn" class="btn btn-glow" style="margin-top: 15px; background: linear-gradient(135deg, #d4af37, #b8860b);"><i class="fas fa-play"></i> Mulai Sesi Kaligrafi (Fullscreen)</button>
+                </div>
+            </div>
+
+            <!-- Drawing Panel -->
+            <div id="game-panel" class="glass-card hidden">
+                <div class="game-info-bar">
+                    <div class="info-item">
+                        <span class="label">Pemain Saat Ini:</span>
+                        <h2 id="current-player" class="highlight-name">-</h2>
+                        <span id="target-soal-badge" class="target-badge">Ayat: -</span>
+                    </div>
+                    <div class="timer-display" id="timer-box">
+                        ⏳ Sisa Waktu: <span id="timer">180</span> dtk
+                    </div>
+                </div>
+
+                <div class="drawing-toolbar">
+                    <div class="tool-group">
+                        <label class="box-label">Pilih Tinta Kaligrafi:</label>
+                        <button id="color-black" class="btn-tool active" style="background:#000; color:#fff; border-color:#d4af37;" onclick="setCalligraphyColor('#000000')"><i class="fas fa-pen"></i> Hitam</button>
+                        <button id="color-gold" class="btn-tool" style="background:#d4af37; color:#000;" onclick="setCalligraphyColor('#d4af37')"><i class="fas fa-pen-nib"></i> Emas</button>
+                    </div>
+
+                    <div class="tool-group">
+                        <button class="btn btn-secondary btn-sm" onclick="undoCanvas()"><i class="fas fa-undo"></i> Kembali (Undo)</button>
+                        <button class="btn btn-danger btn-sm" onclick="clearCanvas()"><i class="fas fa-trash"></i> Bersihkan</button>
+                    </div>
+                </div>
+
+                <div class="canvas-wrapper" style="position: relative;">
+                    <!-- Canvas dengan 8 Garis Panduan Transparan -->
+                    <canvas id="drawing-canvas"></canvas>
+                </div>
+
+                <div class="tool-controls">
+                    <div class="action-group" style="display: flex; gap: 10px; width: 100%;">
+                        <button class="btn btn-warning" style="padding: 12px; font-size: 13px; white-space: nowrap;" onclick="skipCurrentStudent()"><i class="fas fa-user-slash"></i> Skip Siswa</button>
+                        <button class="btn btn-danger" style="padding: 12px; font-size: 13px; white-space: nowrap; background: #991b1b;" onclick="adminResetSession()"><i class="fas fa-redo"></i> Reset Sesi</button>
+                        <button id="next-turn-btn" class="btn btn-success" style="flex: 1; padding: 12px; font-size: 15px; background: #16a34a;" onclick="triggerSelesaiButton()"><i class="fas fa-check-circle"></i> Selesai & Nilai AI <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Finish Panel -->
+            <div id="finish-panel" class="glass-card hidden">
+                <h2>🏆 Laporan Hasil Kaligrafi & Penilaian AI</h2>
+                <p id="sync-status-msg" style="color: #d4af37; font-size: 13px; margin-bottom: 15px;">Semua hasil nilai dan gambar kaligrafi siswa telah berhasil diperbarui ke Google Spreadsheet secara real-time[cite: 2, 3].</p>
+                
+                <div class="result-table-wrapper">
+                    <table class="result-table" id="result-table-element">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Nama Siswa</th>
+                                <th>Ayat Al-Fatihah</th>
+                                <th>Nilai AI</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="result-table-body"></tbody>
+                    </table>
+                </div>
+                <button id="restart-btn" class="btn btn-glow" style="margin-top: 15px; width:100%; background: linear-gradient(135deg, #d4af37, #b8860b);"><i class="fas fa-redo"></i> Ulangi Sesi / Ganti Kelas</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
