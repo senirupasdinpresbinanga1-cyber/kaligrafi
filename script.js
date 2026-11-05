@@ -1,4 +1,4 @@
-const GS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzGD2akVdn5TdycTWbHvoNuLQBDWaPzIkJCY2wLgD4JvN5F47qpaOqVVyqSJWDnqtCcbA/exec";
+const GS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzZdChT9O5WUpDcbSriv2AIIvOfuQxuZ8MO7r52hnw15f61I4yxbmo4f-K8C4H0y_01/exec";
 
 let selectedClass = "5A";
 let adminSelectedClass = "5A";
