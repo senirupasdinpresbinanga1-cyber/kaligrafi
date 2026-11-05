@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Seni Kaligrafi - Surat Al-Fatihah & Penilaian AI</title>
+    <title>Seni Kaligrafi - Surat Al-Fatihah</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -58,9 +58,9 @@
                         <tr>
                             <th>Nama</th>
                             <th>Ayat Kaligrafi</th>
-                            <th>Nilai</th>
+                            <th>Status</th>
                             <th>Waktu</th>
-                            <th>Analisis</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="admin-db-table-body">
@@ -96,7 +96,7 @@
                 <h3><i class="fas fa-feather-pointed"></i> Pilih Ayat Al-Fatihah</h3>
             </div>
             <div class="modal-body" style="text-align: left;">
-                <p style="font-size: 14px; color: #cbd5e1; margin-bottom: 15px;">Halo <strong id="modal-student-name" style="color: #d4af37;">-</strong>, silakan pilih ayat Surat Al-Fatihah yang akan dikaligrafi:</p>
+                <p style="font-size: 14px; color: #cbd5e1; margin-bottom: 15px;">Halo <strong id="modal-student-name" style="color: #d4af37;">-</strong>, silakan pilih ayat Surat Al-Fatihah yang ingin dikaligrafi:</p>
                 
                 <label style="font-size: 13px; color: #94a3b8; display: block; margin-bottom: 8px;">Daftar Ayat Tersedia:</label>
                 <select id="package-item-select" class="btn-class" style="width: 100%; margin-bottom: 20px; text-align: left; background: #0f172a; padding: 12px; font-size: 14px;"></select>
@@ -115,19 +115,15 @@
         </div>
     </div>
 
-    <!-- Modal Preview Gambar & Analisis AI Kaligrafi -->
+    <!-- Modal Preview Gambar Kaligrafi -->
     <div id="image-modal" class="full-overlay" style="display: none;">
         <div class="card modal-card">
             <div class="modal-header">
-                <h3 id="modal-preview-title"><i class="fas fa-robot"></i> Analisis AI Kaligrafi & Hasil</h3>
+                <h3 id="modal-preview-title"><i class="fas fa-image"></i> Hasil Kaligrafi Siswa</h3>
                 <button class="btn-close" onclick="closeImageModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <img id="modal-img-preview" src="" alt="Hasil Kaligrafi Siswa" style="max-height: 35vh; margin-bottom: 15px; border-color: #d4af37;">
-                <div id="ai-feedback-box" style="background: #0f172a; padding: 15px; border-radius: 10px; text-align: left; border: 1px solid #334155; max-height: 30vh; overflow-y: auto;">
-                    <p id="ai-score-text" style="font-size: 18px; font-weight: 700; color: #d4af37; margin-bottom: 8px;">Nilai AI: -</p>
-                    <p id="ai-desc-text" style="font-size: 12px; color: #cbd5e1; line-height: 1.5; white-space: pre-line;">-</p>
-                </div>
+                <img id="modal-img-preview" src="" alt="Hasil Kaligrafi Siswa" style="max-height: 45vh; margin-bottom: 15px; border-color: #d4af37;">
             </div>
         </div>
     </div>
@@ -161,10 +157,9 @@
 
                     <ul class="rule-list" style="margin-top: 15px;">
                         <li>📥 <strong>Database Spreadsheet:</strong> Nama siswa ditarik otomatis dari sheet[cite: 1, 2].</li>
-                        <li>🔒 <strong>Ayat Unik:</strong> Ayat Al-Fatihah yang sudah diambil siswa lain otomatis hilang[cite: 2].</li>
-                        <li>✒️ <strong>Pena Kaligrafi:</strong> Tinta khusus <strong>Hitam & Emas</strong> dengan sudut pipih otomatis (vertikal tipis, horizontal tebal).</li>
-                        <li>📏 <strong>8 Baris Transparan:</strong> Panduan garis bantu untuk menjaga tulisan tetap rapi dan proporsional.</li>
-                        <li>🏆 <strong>Sistem Penilaian AI:</strong> Menganalisis kelengkapan ayat, harakat/tanda baca, proporsi, dan kerapian. Nilai maksimal sempurna adalah **100%**.</li>
+                        <li>✒️ <strong>Pena Kaligrafi & Cat Tumpah:</strong> Tinta khusus <strong>Hitam & Emas</strong> dengan sudut pipih (horizontal tebal, vertikal tipis) serta fitur isi warna.</li>
+                        <li>📏 <strong>8 Baris Transparan:</strong> Panduan garis bantu agar tulisan rapi dan proporsional.</li>
+                        <li>✅ <strong>Status Selesai:</strong> Tanpa penilaian angka, cukup selesai atau belum.</li>
                     </ul>
                     <button id="start-btn" class="btn btn-glow" style="margin-top: 15px; background: linear-gradient(135deg, #d4af37, #b8860b);"><i class="fas fa-play"></i> Mulai Sesi Kaligrafi (Fullscreen)</button>
                 </div>
@@ -185,9 +180,15 @@
 
                 <div class="drawing-toolbar">
                     <div class="tool-group">
-                        <label class="box-label">Pilih Tinta Kaligrafi:</label>
-                        <button id="color-black" class="btn-tool active" style="background:#000; color:#fff; border-color:#d4af37;" onclick="setCalligraphyColor('#000000')"><i class="fas fa-pen"></i> Hitam</button>
-                        <button id="color-gold" class="btn-tool" style="background:#d4af37; color:#000;" onclick="setCalligraphyColor('#d4af37')"><i class="fas fa-pen-nib"></i> Emas</button>
+                        <label class="box-label">Alat & Tinta:</label>
+                        <button id="tool-brush" class="btn-tool active" onclick="setTool('brush')"><i class="fas fa-pen-nib"></i> Pena Kaligrafi</button>
+                        <button id="tool-fill" class="btn-tool" onclick="setTool('fill')"><i class="fas fa-fill-drip"></i> Cat Tumpah</button>
+                    </div>
+
+                    <div class="tool-group">
+                        <label class="box-label">Warna:</label>
+                        <button id="color-black" class="btn-tool active" style="background:#000; color:#fff;" onclick="setCalligraphyColor('#000000')">Hitam</button>
+                        <button id="color-gold" class="btn-tool" style="background:#d4af37; color:#000;" onclick="setCalligraphyColor('#d4af37')">Emas</button>
                     </div>
 
                     <div class="tool-group">
@@ -196,8 +197,7 @@
                     </div>
                 </div>
 
-                <div class="canvas-wrapper" style="position: relative;">
-                    <!-- Canvas dengan 8 Garis Panduan Transparan -->
+                <div class="canvas-wrapper">
                     <canvas id="drawing-canvas"></canvas>
                 </div>
 
@@ -205,15 +205,15 @@
                     <div class="action-group" style="display: flex; gap: 10px; width: 100%;">
                         <button class="btn btn-warning" style="padding: 12px; font-size: 13px; white-space: nowrap;" onclick="skipCurrentStudent()"><i class="fas fa-user-slash"></i> Skip Siswa</button>
                         <button class="btn btn-danger" style="padding: 12px; font-size: 13px; white-space: nowrap; background: #991b1b;" onclick="adminResetSession()"><i class="fas fa-redo"></i> Reset Sesi</button>
-                        <button id="next-turn-btn" class="btn btn-success" style="flex: 1; padding: 12px; font-size: 15px; background: #16a34a;" onclick="triggerSelesaiButton()"><i class="fas fa-check-circle"></i> Selesai & Nilai AI <i class="fas fa-arrow-right"></i></button>
+                        <button id="next-turn-btn" class="btn btn-success" style="flex: 1; padding: 12px; font-size: 15px; background: #16a34a;" onclick="triggerSelesaiButton()"><i class="fas fa-check-circle"></i> Selesai & Simpan <i class="fas fa-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
 
             <!-- Finish Panel -->
             <div id="finish-panel" class="glass-card hidden">
-                <h2>🏆 Laporan Hasil Kaligrafi & Penilaian AI</h2>
-                <p id="sync-status-msg" style="color: #d4af37; font-size: 13px; margin-bottom: 15px;">Semua hasil nilai dan gambar kaligrafi siswa telah berhasil diperbarui ke Google Spreadsheet secara real-time[cite: 2, 3].</p>
+                <h2>🏆 Laporan Hasil Kaligrafi Selesai</h2>
+                <p id="sync-status-msg" style="color: #d4af37; font-size: 13px; margin-bottom: 15px;">Semua hasil karya kaligrafi siswa telah berhasil diperbarui ke Google Spreadsheet[cite: 2, 3].</p>
                 
                 <div class="result-table-wrapper">
                     <table class="result-table" id="result-table-element">
@@ -222,7 +222,6 @@
                                 <th>No</th>
                                 <th>Nama Siswa</th>
                                 <th>Ayat Al-Fatihah</th>
-                                <th>Nilai AI</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
