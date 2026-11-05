@@ -23,8 +23,8 @@ const alfatihahPackage = [
 
 let canvas, ctx;
 let isDrawing = false;
-let currentTool = "brush"; // "brush" atau "fill"
-let currentCalligraphyColor = "#000000"; // Hitam atau #d4af37 (Emas)
+let currentTool = "brush"; 
+let currentCalligraphyColor = "#000000"; 
 let lastX = 0;
 let lastY = 0;
 let undoStack = [];
@@ -379,7 +379,6 @@ function promptStudentChoice() {
     const selectEl = document.getElementById('package-item-select');
     selectEl.innerHTML = '';
     
-    // Semua ayat tetap tersedia (tidak dihapus walau sudah dipilih siswa lain)
     alfatihahPackage.forEach(item => {
         let opt = document.createElement('option');
         opt.value = item;
@@ -412,13 +411,14 @@ function confirmStudentChoice() {
 }
 
 // =========================================================================
-// PENA KALIGRAFI TERSAMBUNG SEMPURNA (Garis Horizontal Kiri-Kanan TEBAL, Vertikal TIPIS)
+// PENA KALIGRAFI NIB BELAH KETUPAT (KOTAK DIPUTAR 90 DERAJAT / 45°)
 // =========================================================================
 function startAction(coords) {
     isDrawing = true;
     saveUndoState();
     lastX = coords.x;
     lastY = coords.y;
+    drawDiamondStamp(lastX, lastY);
 }
 
 function moveAction(coords) {
@@ -432,24 +432,42 @@ function moveAction(coords) {
     let distance = Math.sqrt(dx * dx + dy * dy);
     let angle = Math.atan2(dy, dx);
 
-    // Dibalik: Sesuai permintaan Anda, garis ke samping (horizontal) tebal, ke atas-bawah tipis
-    let calligraphyWidth = Math.abs(Math.cos(angle)) * 16 + 3;
+    // Ketebalan dinamis nib pipih: Horizontal tebal, vertikal tipis
+    let calligraphyWidth = Math.abs(Math.cos(angle)) * 14 + 4;
 
     ctx.save();
     ctx.beginPath();
     ctx.strokeStyle = currentCalligraphyColor;
     ctx.fillStyle = currentCalligraphyColor;
-    ctx.lineWidth = Math.max(3, calligraphyWidth);
-    ctx.lineCap = "round";  // Membuat ujung bulat agar garis bengkok tetap tersambung rapat tanpa putus
-    ctx.lineJoin = "round"; // Membuat sambungan sudut melengkung halus dan menyatu
+    ctx.lineWidth = Math.max(4, calligraphyWidth);
+    ctx.lineCap = "square"; // Bentuk ujung kotak datar
+    ctx.lineJoin = "miter"; // Sambungan sudut lancip menyerupai kaligrafi pena bambu
 
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(currentX, currentY);
     ctx.stroke();
     ctx.restore();
 
+    // Stamping bentuk belah ketupat di sepanjang jalur agar membentuk goresan kotak diputar 90 derajat yang rapat
+    let steps = Math.max(1, Math.floor(distance / 2));
+    for (let i = 1; i <= steps; i++) {
+        let interpX = lastX + (dx * i) / steps;
+        let interpY = lastY + (dy * i) / steps;
+        drawDiamondStamp(interpX, interpY, calligraphyWidth);
+    }
+
     lastX = currentX;
     lastY = currentY;
+}
+
+// Fungsi menggambar stempel belah ketupat (kotak diputar 90° / 45°)
+function drawDiamondStamp(x, y, size = 12) {
+    ctx.save();
+    ctx.fillStyle = currentCalligraphyColor;
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4); // Rotasi 45-90 derajat membentuk belah ketupat
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
 }
 
 function stopAction() {
@@ -457,9 +475,6 @@ function stopAction() {
     isDrawing = false;
 }
 
-// =========================================================================
-// FITUR CAT TUMPAH (FLOOD FILL) DENGAN WARNA HITAM & EMAS
-// =========================================================================
 function hexToRgba(hex) {
     let bigint = parseInt(hex.replace('#',''), 16);
     let r = (bigint >> 16) & 255;
